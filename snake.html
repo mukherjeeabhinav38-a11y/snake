@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Multiplayer-Ready Snake Game</title>
+  <style>
+    body { margin:0; display:flex; align-items:center; justify-content:center; height:100vh; background:#0a0f1a; color:#fff; font-family:sans-serif; }
+    canvas { background:#1a2233; border-radius:10px; touch-action:none; }
+    #hud { position:fixed; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:20px; font-size:18px; }
+    #hud span { font-weight:bold; }
+    .touch-ctrls { display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); user-select:none; }
+    .touch-ctrls .row { display:flex; gap:10px; justify-content:center; }
+    .touch-btn { width:60px; height:60px; background:rgba(255,255,255,0.15); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:24px; color:#fff; }
+    @media(max-width:800px){ .touch-ctrls{display:block} }
+    #overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(0,0,0,0.7); font-size:24px; display:none; text-align:center; }
+    #overlay button { margin-top:20px; padding:10px 20px; border:none; border-radius:8px; background:#22c55e; color:#fff; font-size:18px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    Score: <span id="score">0</span> |
+    High Score: <span id="high">0</span> |
+    Level: <span id="level">1</span>
+  </div>
+  <canvas id="game" width="480" height="480"></canvas>
+  
+  <div class="touch-ctrls">
+    <div class="row"><div class="touch-btn" id="upBtn">↑</div></div>
+    <div class="row">
+      <div class="touch-btn" id="leftBtn">←</div>
+      <div class="touch-btn" id="downBtn">↓</div>
+      <div class="touch-btn" id="rightBtn">→</div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div id="msg">Game Over</div>
+    <button id="restartBtn">Play Again</button>
+  </div>
+
+  <script>
+    const canvas=document.getElementById("game");
+    const ctx=canvas.getContext("2d");
+    const grid=20;
+    let snake, apple, dir, nextDir, score, level, obstacles, speed, loopId, gameOver;
+    const scoreEl=document.getElementById("score");
+    const highEl=document.getElementById("high");
+    const levelEl=document.getElementById("level");
+    const overlay=document.getElementById("overlay");
+    const msg=document.getElementById("msg");
+    let highScore=localStorage.getItem("snakeHigh")||0;
+    highEl.textContent=highScore;
+
+    function resize(){
+      const s=Math.min(window.innerWidth,window.innerHeight)-60;
+      canvas.width=canvas.height=Math.max(240,Math.min(480,s));
+    }
+    window.addEventListener("resize",resize);resize();
+
+    function reset(){
+      snake=[{x:9,y:9}];
+      dir={x:1,y:0}; nextDir={x:1,y:0};
+      score=0; level=1; speed=150; obstacles=[];
+      gameOver=false;
+      placeApple();
+      updateHUD();
+      overlay.style.display="none";
+      clearInterval(loopId);
+      loopId=setInterval(loop,speed);
+    }
+
+    function updateHUD(){
+      scoreEl.textContent=score;
+      levelEl.textContent=level;
+      highEl.textContent=highScore;
+    }
+
+    function randomCell(){
+      return {x:Math.floor(Math.random()*grid), y:Math.floor(Math.random()*grid)};
+    }
+
+    function placeApple(){
+      let cell;
+      do{
+        cell=randomCell();
+      }while(snake.some(s=>s.x===cell.x&&s.y===cell.y)||obstacles.some(o=>o.x===cell.x&&o.y===cell.y));
+      apple=cell;
+    }
+
+    function step(){
+      if(gameOver) return;
+      if(nextDir.x!==-dir.x||nextDir.y!==-dir.y) dir={...nextDir};
+      const head={x:(snake[0].x+dir.x+grid)%grid, y:(snake[0].y+dir.y+grid)%grid};
+      if(snake.some(s=>s.x===head.x&&s.y===head.y)||obstacles.some(o=>o.x===head.x&&o.y===head.y)){ endGame(); return; }
+      snake.unshift(head);
+      if(head.x===apple.x&&head.y===apple.y){
+        score++;
+        if(score>highScore){highScore=score; localStorage.setItem("snakeHigh",highScore);}
+        if(score%5===0) levelUp();
+        placeApple(); updateHUD();
+      } else snake.pop();
+    }
+
+    function levelUp(){
+      level++;
+      speed=Math.max(70,speed-15);
+      clearInterval(loopId);
+      loopId=setInterval(loop,speed);
+      let cell;
+      do{
+        cell=randomCell();
+      }while(snake.some(s=>s.x===cell.x&&s.y===cell.y)||cell.x===apple.x&&cell.y===apple.y);
+      obstacles.push(cell);
+    }
+
+    function draw(){
+      ctx.fillStyle="#1a2233"; ctx.fillRect(0,0,canvas.width,canvas.height);
+      const size=canvas.width/grid;
+      // apple
+      ctx.fillStyle="#22c55e";
+      ctx.beginPath();
+      ctx.arc(apple.x*size+size/2,apple.y*size+size/2,size/3,0,Math.PI*2);
+      ctx.fill();
+      // obstacles
+      obstacles.forEach(o=>{
+        ctx.fillStyle="#a83232";
+        ctx.fillRect(o.x*size+2,o.y*size+2,size-4,size-4);
+      });
+      // snake
+      snake.forEach((s,i)=>{
+        ctx.fillStyle=i===0?"#60a5fa":"#0f1724";
+        ctx.fillRect(s.x*size+1,s.y*size+1,size-2,size-2);
+      });
+    }
+
+    function loop(){ step(); draw(); }
+
+    function endGame(){
+      gameOver=true; clearInterval(loopId);
+      msg.textContent="Game Over! Final Score: "+score;
+      overlay.style.display="flex";
+    }
+
+    // Controls
+    window.addEventListener("keydown",e=>{
+      if(e.key==="ArrowUp"||e.key==="w") nextDir={x:0,y:-1};
+      if(e.key==="ArrowDown"||e.key==="s") nextDir={x:0,y:1};
+      if(e.key==="ArrowLeft"||e.key==="a") nextDir={x:-1,y:0};
+      if(e.key==="ArrowRight"||e.key==="d") nextDir={x:1,y:0};
+    });
+    document.getElementById("upBtn").onclick=()=>nextDir={x:0,y:-1};
+    document.getElementById("downBtn").onclick=()=>nextDir={x:0,y:1};
+    document.getElementById("leftBtn").onclick=()=>nextDir={x:-1,y:0};
+    document.getElementById("rightBtn").onclick=()=>nextDir={x:1,y:0};
+    document.getElementById("restartBtn").onclick=reset;
+
+    // Swipe
+    let sx=0,sy=0;
+    canvas.addEventListener("touchstart",e=>{sx=e.touches[0].clientX; sy=e.touches[0].clientY;});
+    canvas.addEventListener("touchend",e=>{
+      let dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+      if(Math.abs(dx)>Math.abs(dy)){ if(dx>20) nextDir={x:1,y:0}; if(dx<-20) nextDir={x:-1,y:0}; }
+      else { if(dy>20) nextDir={x:0,y:1}; if(dy<-20) nextDir={x:0,y:-1}; }
+    });
+
+    reset();
+  </script>
+</body>
+</html>
