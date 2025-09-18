@@ -144,10 +144,10 @@
 
     // Controls
     window.addEventListener("keydown",e=>{
-      if(e.key==="ArrowUp"||e.key==="w") nextDir={x:0,y:-1};
-      if(e.key==="ArrowDown"||e.key==="s") nextDir={x:0,y:1};
-      if(e.key==="ArrowLeft"||e.key==="a") nextDir={x:-1,y:0};
-      if(e.key==="ArrowRight"||e.key==="d") nextDir={x:1,y:0};
+      if(e.key==="ArrowUp"||e.key==="w") nextDir={x:0,y:-2};
+      if(e.key==="ArrowDown"||e.key==="s") nextDir={x:0,y:2};
+      if(e.key==="ArrowLeft"||e.key==="a") nextDir={x:-2,y:0};
+      if(e.key==="ArrowRight"||e.key==="d") nextDir={x:2,y:0};
     });
     document.getElementById("upBtn").onclick=()=>nextDir={x:0,y:-1};
     document.getElementById("downBtn").onclick=()=>nextDir={x:0,y:1};
@@ -168,3 +168,4 @@
   </script>
 </body>
 </html>
+
